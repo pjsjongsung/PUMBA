@@ -238,9 +238,9 @@ def recover_img(image, params):
                 image,
                 np.eye(4),
                 (
-                    new_image.shape[0] / set_size[0],
-                    new_image.shape[1] / set_size[1],
-                    new_image.shape[2] / set_size[2],
+                    image.shape[0] / set_size[0],
+                    image.shape[1] / set_size[1],
+                    image.shape[2] / set_size[2],
                 ),
                 (1, 1, 1),
             )
