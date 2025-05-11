@@ -1,2 +1,2 @@
 # PUMBA
-Repository for PUMBA, Purely Unsupervised Multimodal/species invariant Brain extrAction
+Repository for PUMBA, PUrely synthetic Multimodal/species invariant Brain extrAction
