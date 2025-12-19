@@ -54,7 +54,7 @@ def phi_V(x, N):
         x = np.reshape(temp, (64, 64, 64, 3))
 
     x = np.moveaxis(x, -1, 0)
-    
+
     return x
 
 
@@ -63,23 +63,23 @@ def upscale_volume(input_volume, scale_factor):
     # Create the interpolation function
     grid = [np.arange(dim) for dim in input_volume.shape]
     interpolator = RegularGridInterpolator(grid, input_volume, method='linear', bounds_error=False, fill_value=0)
-    
+
     # Calculate the new dimensions of the upscaled volume
     new_shape = [int(dim * scale_factor) for dim in input_volume.shape]
     output_volume = np.zeros(new_shape)
-    
+
     # Generate new coordinates for the upscaled volume
     new_coordinates = []
     for i in range(len(new_shape)):
         coord_range = np.linspace(0, input_volume.shape[i] - 1, new_shape[i])
         new_coordinates.append(coord_range)
-    
+
     new_coordinates = np.meshgrid(*new_coordinates, indexing='ij')
     new_coordinates = np.stack(new_coordinates, axis=-1)
-    
+
     # Perform trilinear interpolation
     output_volume = interpolator(new_coordinates)
-    
+
     return output_volume
 
 
@@ -127,7 +127,7 @@ def generate_random_ellipsoid(size_range, thickness_range, brain_range, deformat
                      rng.integers(0, size_inner[2]//2-hole_size[2]//2)]
         hole = ((x - 64 - rnd_trans[0]) / (hole_size[0]//2)) ** 2 + ((y - 64 - rnd_trans[0]) / (hole_size[1]//2)) ** 2 + ((z - 64 - rnd_trans[0]) / (hole_size[2]//2)) ** 2 <= 1
         hole_mask = hole_mask * (1-hole)
- 
+
     small_ellipsoids = []
     small_ellipsoids_range = []
     for size_small in size_smalls:
@@ -222,7 +222,7 @@ def gen():
 
         whole2 = apply_displacement_field(whole, displacement_field)
         mask2 = np.round(apply_displacement_field(mask, displacement_field)).astype(np.int32)
-        
+
         temp = np.concatenate([whole2, mask2], axis=-1)
         temp = rotate(temp, rng.uniform(-15.0, 15.0), axes=(0, 1), reshape=False)
         temp = rotate(temp, rng.uniform(-15.0, 15.0), axes=(0, 2), reshape=False)
@@ -247,13 +247,13 @@ def augment_using_ops(x, y):
     def random_flip(vol):
         ps = (0.5, 0.5, 0.5)
         axes = []
-        
+
         for ax, p in enumerate(ps):
             if rng.uniform() < p:
                 axes.append(ax)
         if len(axes) != 0:
             vol = tf.reverse(vol, axes)
-        
+
         return vol
 
     def random_tp(vol):
@@ -261,7 +261,7 @@ def augment_using_ops(x, y):
         tps = [int(np.round(rng.uniform()*max_tp*2-max_tp)) for _ in range(3)]
 
         vol = tf.roll(vol, shift=tps, axis=[0,1,2])
-        
+
         return vol
 
     images = x
