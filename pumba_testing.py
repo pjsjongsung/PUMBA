@@ -3,24 +3,12 @@ import tensorflow.keras.backend as K
 
 import numpy as np
 from dipy.io.image import load_nifti, save_nifti
-from pumba_utils import transform_img, recover_img
+from pumba_utils import transform_img, recover_img, post_process
 from scipy.ndimage import label
 
 from skimage.morphology import binary_dilation
 
 import sys
-
-def post_process(pred):
-    chunks, n_chunk = label(np.round(pred[..., 0]))
-    if n_chunk > 1:
-        u, c = np.unique(chunks[chunks!=0], return_counts=True)
-        t = u[np.argmax(c)]
-        new_mask = np.where(chunks==t, 1, 0)
-    else:
-        new_mask = np.round(pred[..., 0])
-    dilated_mask = binary_dilation(new_mask, [(np.ones((5, 1, 1)), 1), (np.ones((1, 5, 1)), 1), (np.ones((1, 1, 5)), 1)])
-    new_mask = new_mask + dilated_mask * np.round(pred[..., 1])
-    return new_mask
 
 def dice_coefficient(y_true, y_pred):
     y_true = tf.cast(y_true, tf.float32)
@@ -54,8 +42,11 @@ if __name__ == "__main__":
 
     pred = np.squeeze(model(image))
 
-    pred = post_process(pred)
+    if skip_postprocess := ("--skip-postprocess" in sys.argv):
+        pred = np.argmax(pred, axis=-1)
+    else:
+        pred = post_process(pred)
 
-    pred = recover_img(pred, params)
+    pred = recover_img(pred, params, order=0)
 
     save_nifti(output_name, np.round(pred).astype(np.int32), affine)

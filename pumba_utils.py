@@ -1,7 +1,9 @@
 # This will be soon replaced with dipy.nn.utils when merged
 
 import numpy as np
-from scipy.ndimage import affine_transform, map_coordinates
+from scipy.ndimage import affine_transform, map_coordinates, label
+from skimage.morphology import binary_dilation
+from dipy.nn.utils import get_bounds, pad_crop, inv_pad_crop
 
 
 def normalize(image, *, min_v=None, max_v=None, new_min=-1, new_max=1):
@@ -129,8 +131,44 @@ def get_bounds(shape, affine, *, considered_points="corners"):
     return min_bounds, max_bounds
 
 
-def transform_img(image, affine, target_voxsize=None,
-                  final_size=None, order=3):
+def transform_img(
+    image,
+    affine,
+    *,
+    target_voxsize=None,
+    final_size=None,
+    order=3,
+    considered_points="corners",
+):
+    """
+    Function to transform images for Deep Learning models
+    Parameters
+    ----------
+    image : np.ndarray
+        Image to transform.
+    affine : np.ndarray
+        Affine matrix provided by the image file.
+    target_voxsize : tuple (3,), optional
+        The voxel size we want to start from.
+        If none is provided, we calculate the closest isotropic voxel size.
+    final_size : tuple (3,), optional
+        The final size of the image array.
+    order : int, optional
+        The order of the spline interpolation.
+        The order has to be in the range 0-5.
+        If transforming an int image, order 0 is recommended.
+    considered_points : str, optional
+        Considered points when calculating the transformed shape.
+        \"corners\" will consider only corners of the image shape.
+        \"all\" will consider all voxels. Might be needed when shearing is applied.
+
+    Returns
+    -------
+    new_image : np.ndarray
+        Transformed image to be used in the Deep Learning model.
+    params : dict
+        Parameters that are used when recovering the original image space.
+    """
     init_shape = image.shape
     R = affine[:3, :3]
     voxsize = np.sqrt(np.sum(R * R, axis=0))
@@ -139,7 +177,9 @@ def transform_img(image, affine, target_voxsize=None,
     else:
         target_voxsize = np.array(target_voxsize, dtype=float)
 
-    min_bounds, max_bounds = get_bounds(init_shape, affine)
+    min_bounds, max_bounds = get_bounds(
+        init_shape, affine, considered_points=considered_points
+    )
     new_shape = (max_bounds - min_bounds) / target_voxsize
     new_shape = np.round(new_shape).astype(int)
 
@@ -151,9 +191,14 @@ def transform_img(image, affine, target_voxsize=None,
     offset = (invA[:3, 3] + invA[:3, :3] @ new_origin_world).astype(float)
 
     new_image = np.zeros(tuple(new_shape), dtype=image.dtype)
-    affine_transform(image, matrix=matrix, offset=offset,
-                     output_shape=tuple(new_shape),
-                     output=new_image, order=order)
+    affine_transform(
+        image,
+        matrix=matrix,
+        offset=offset,
+        output_shape=tuple(new_shape),
+        output=new_image,
+        order=order,
+    )
 
     if final_size is None:
         final_size = new_image.shape
@@ -172,13 +217,34 @@ def transform_img(image, affine, target_voxsize=None,
     return new_image, params
 
 
-def recover_img(image, params, order=3):
-    expected = {"init_shape",
-                "ori_affine",
-                "target_voxsize",
-                "new_origin_world",
-                "pad_value",
-                "crop_value"}
+def recover_img(image, params, *, order=3):
+    """
+    Function to recover image from transform_img
+    Parameters
+    ----------
+    image : np.ndarray
+        Image to recover.
+    params : tuple
+        Parameters for recover_img function.
+        Returned from transform_img.
+    order : int, optional
+        The order of the spline interpolation.
+        The order has to be in the range 0-5.
+        If recovering an int image, order 0 is recommended.
+
+    Returns
+    -------
+    recovered : np.ndarray
+        Recovered image
+    """
+    expected = {
+        "init_shape",
+        "ori_affine",
+        "target_voxsize",
+        "new_origin_world",
+        "pad_value",
+        "crop_value",
+    }
     missing = expected - set(params.keys())
     if missing:
         raise ValueError(f"params missing: {missing}")
@@ -295,3 +361,15 @@ def inv_pad_crop(image, crop_vs, pad_vs):
     ]
 
     return image
+
+def post_process(pred):
+    chunks, n_chunk = label(np.round(pred[..., 0]))
+    if n_chunk > 1:
+        u, c = np.unique(chunks[chunks!=0], return_counts=True)
+        t = u[np.argmax(c)]
+        new_mask = np.where(chunks==t, 1, 0)
+    else:
+        new_mask = np.round(pred[..., 0])
+    dilated_mask = binary_dilation(new_mask, [(np.ones((5, 1, 1)), 1), (np.ones((1, 5, 1)), 1), (np.ones((1, 1, 5)), 1)])
+    new_mask = new_mask + dilated_mask * np.round(pred[..., 1])
+    return new_mask
