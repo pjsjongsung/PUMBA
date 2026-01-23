@@ -14,6 +14,6 @@ dipy
 
 Both the tensorflow and torch version can be run through
 
-```python pumba_testing.py(or pumba_testing_torch.py) input_file_path, output_path```
+```python pumba_testing.py(or pumba_testing_torch.py) input_file_path output_path```
 
 add ```--skip-postprocess``` in the end if you want to see the output without post processing.
