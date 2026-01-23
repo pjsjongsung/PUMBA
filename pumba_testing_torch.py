@@ -6,9 +6,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dipy.io.image import load_nifti, save_nifti
-from dipy.nn.utils import transform_img, recover_img, post_process
+from pumba_utils import transform_img, recover_img, post_process
 
-TORCH_STATE   = "superseg_unet_best_prev_torch_state_dict.pt"
+TORCH_STATE   = "torch_weights.pt"
 
 class ConvBlock(nn.Module):
     def __init__(self, in_ch, out_ch, gn_groups=8):
