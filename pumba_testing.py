@@ -36,16 +36,16 @@ if __name__ == "__main__":
     transform_method = sys.argv[3] if len(sys.argv) > 3 else "transform_img"
 
     image, affine, voxsize = load_nifti(file_name, return_voxsize=True)
+    shape = image.shape
     if transform_method == "transform_img":
         target_voxsize = compute_isotropic_spacing(image.shape, voxsize)
-        image, params = transform_img(image, affine, target_voxsize=target_voxsize, final_size=(128, 128, 128))
+        image, params = transform_img(image, affine, target_voxsize=tuple([target_voxsize] * 3), final_size=(128, 128, 128))
     elif transform_method == "resize":
         from skimage.transform import resize
         image = resize(image, (128, 128, 128), anti_aliasing=True)
     else:
         raise ValueError(f"Unknown transform method: {transform_method}")
     image = np.interp(image, (np.percentile(image, 1), np.percentile(image, 99)), (0, 1))
-    shape = image.shape
     image = tf.convert_to_tensor(image.reshape((1, 128, 128, 128, 1)), dtype=tf.float32)
 
     pred = np.squeeze(model(image))

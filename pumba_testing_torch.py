@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dipy.io.image import load_nifti, save_nifti
-from pumba_utils import transform_img, recover_img, post_process
+from pumba_utils import transform_img, recover_img, post_process, compute_isotropic_spacing
 
 TORCH_STATE   = "torch_weights.pt"
 
@@ -75,8 +75,9 @@ output_path = sys.argv[2]
 transform_method = sys.argv[3] if len(sys.argv) > 3 else "transform_img"
 image, affine, voxsize = load_nifti(file_path, return_voxsize=True)
 if transform_method == "transform_img":
+    target_voxsize = compute_isotropic_spacing(image.shape, voxsize)
     x, params = transform_img(
-        image, affine, target_voxsize=(2, 2, 2), final_size=(128, 128, 128)
+        image, affine, target_voxsize=tuple([target_voxsize] * 3), final_size=(128, 128, 128)
     )
 elif transform_method == "resize":
     from skimage.transform import resize
