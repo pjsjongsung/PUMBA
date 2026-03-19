@@ -16,7 +16,8 @@ Both the tensorflow and torch version can be run through
 
 ```python pumba_testing.py(or pumba_testing_torch.py) input_file_path output_path transform_method```
 
-transform_method can be either tranform_img or resize
-resize is more stable, but transform_img calculates using an isotropic image
+`transform_method` can be either `tranform_img` or `resize`.
+
+`resize` is more stable, but `transform_img` calculates using an isotropic image
 
 add ```--skip-postprocess``` in the end if you want to see the output without post processing.
