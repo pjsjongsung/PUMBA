@@ -3,7 +3,7 @@ import tensorflow.keras.backend as K
 
 import numpy as np
 from dipy.io.image import load_nifti, save_nifti
-from pumba_utils import transform_img, recover_img, post_process
+from pumba_utils import transform_img, recover_img, post_process, compute_isotropic_spacing
 from scipy.ndimage import label
 
 from skimage.morphology import binary_dilation
@@ -33,10 +33,18 @@ if __name__ == "__main__":
 
     file_name = sys.argv[1]
     output_name = sys.argv[2]
+    transform_method = sys.argv[3] if len(sys.argv) > 3 else "transform_img"
 
-    image, affine = load_nifti(file_name)
+    image, affine, voxsize = load_nifti(file_name, return_voxsize=True)
+    if transform_method == "transform_img":
+        target_voxsize = compute_isotropic_spacing(image.shape, voxsize)
+        image, params = transform_img(image, affine, target_voxsize=target_voxsize, final_size=(128, 128, 128))
+    elif transform_method == "resize":
+        from skimage.transform import resize
+        image = resize(image, (128, 128, 128), anti_aliasing=True)
+    else:
+        raise ValueError(f"Unknown transform method: {transform_method}")
     image = np.interp(image, (np.percentile(image, 1), np.percentile(image, 99)), (0, 1))
-    image, params = transform_img(image, affine, (2, 2, 2), (128, 128, 128))
     shape = image.shape
     image = tf.convert_to_tensor(image.reshape((1, 128, 128, 128, 1)), dtype=tf.float32)
 
@@ -47,6 +55,9 @@ if __name__ == "__main__":
     else:
         pred = post_process(pred)
 
-    pred = recover_img(pred, params, order=0)
+    if transform_method == "transform_img":
+        pred = recover_img(pred, params, order=0)
+    elif transform_method == "resize":
+        pred = resize(pred, shape, order=0, preserve_range=True)
 
-    save_nifti(output_name, np.round(pred).astype(np.int32), affine)
+    save_nifti(output_name, np.round(pred).astype(np.uint8), affine)

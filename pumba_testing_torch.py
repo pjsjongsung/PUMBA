@@ -72,10 +72,17 @@ class Pumba(nn.Module):
 
 file_path = sys.argv[1]
 output_path = sys.argv[2]
-image, affine = load_nifti(file_path)
-x, params = transform_img(
-    image, affine, target_voxsize=(2, 2, 2), final_size=(128, 128, 128)
-)
+transform_method = sys.argv[3] if len(sys.argv) > 3 else "transform_img"
+image, affine, voxsize = load_nifti(file_path, return_voxsize=True)
+if transform_method == "transform_img":
+    x, params = transform_img(
+        image, affine, target_voxsize=(2, 2, 2), final_size=(128, 128, 128)
+    )
+elif transform_method == "resize":
+    from skimage.transform import resize
+    x = resize(image, (128, 128, 128), anti_aliasing=True)
+else:
+    raise ValueError(f"Unknown transform method: {transform_method}")
 x = np.interp(x, (np.percentile(x, 1), np.percentile(x, 99)), (0.0, 1.0))
 x = np.reshape(x, (1, 1, 128, 128, 128)).astype(np.float32)  # (1,1,D,H,W)
 x_torch = torch.from_numpy(x)
@@ -91,5 +98,8 @@ if skip_postprocess := ("--skip-postprocess" in sys.argv):
     y_torch = np.argmax(y_torch, axis=-1)
 else:
     y_torch = post_process(y_torch)
-recovered = recover_img(y_torch, params, order=0)
+if transform_method == "transform_img":
+    recovered = recover_img(y_torch, params, order=0)
+else:
+    recovered = resize(y_torch, image.shape, order=0, preserve_range=True)
 save_nifti(output_path, np.round(recovered).astype(np.uint8), affine)

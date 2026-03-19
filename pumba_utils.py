@@ -373,3 +373,20 @@ def post_process(pred):
     dilated_mask = binary_dilation(new_mask, [(np.ones((5, 1, 1)), 1), (np.ones((1, 5, 1)), 1), (np.ones((1, 1, 5)), 1)])
     new_mask = new_mask + dilated_mask * np.round(pred[..., 1])
     return new_mask
+
+def compute_isotropic_spacing(shape, spacing):
+    """
+    shape: (Nx, Ny, Nz)
+    spacing: (sx, sy, sz)
+    returns: s_iso (float)
+    """
+    shape = np.array(shape, dtype=float)
+    spacing = np.array(spacing, dtype=float)
+
+    # physical lengths
+    L = shape * spacing  # (Lx, Ly, Lz)
+
+    # least-squares optimal isotropic spacing
+    s_iso = np.sum(L**2) / (128.0 * np.sum(L))
+
+    return s_iso
