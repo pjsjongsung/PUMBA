@@ -18,6 +18,6 @@ Both the tensorflow and torch version can be run through
 
 `transform_method` can be either `tranform_img` or `resize`.
 
-`resize` is more stable, but `transform_img` calculates using an isotropic image
+`resize` is more stable, but `transform_img` calculates using an isotropic image, which are often beneficial with human images.
 
 add ```--skip-postprocess``` in the end if you want to see the output without post processing.
